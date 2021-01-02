@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This is a temporary ignore to allow us to land a new set of linter rules in a
+// series of manageable patches instead of one gigantic PR. It disables some of
+// the new lints that are already failing on this plugin, for this plugin. It
+// should be deleted and the failing lints addressed as soon as possible.
+// ignore_for_file: public_member_api_docs
+
 import 'package:intl/intl.dart';
 
 /// Android side authentication messages.
@@ -19,14 +25,14 @@ class AndroidAuthMessages {
     this.goToSettingsDescription,
   });
 
-  final String fingerprintHint;
-  final String fingerprintNotRecognized;
-  final String fingerprintSuccess;
-  final String cancelButton;
-  final String signInTitle;
-  final String fingerprintRequiredTitle;
-  final String goToSettingsButton;
-  final String goToSettingsDescription;
+  final String? fingerprintHint;
+  final String? fingerprintNotRecognized;
+  final String? fingerprintSuccess;
+  final String? cancelButton;
+  final String? signInTitle;
+  final String? fingerprintRequiredTitle;
+  final String? goToSettingsButton;
+  final String? goToSettingsDescription;
 
   Map<String, String> get args {
     return <String, String>{
@@ -56,10 +62,10 @@ class IOSAuthMessages {
     this.cancelButton,
   });
 
-  final String lockOut;
-  final String goToSettingsButton;
-  final String goToSettingsDescription;
-  final String cancelButton;
+  final String? lockOut;
+  final String? goToSettingsButton;
+  final String? goToSettingsDescription;
+  final String? cancelButton;
 
   Map<String, String> get args {
     return <String, String>{

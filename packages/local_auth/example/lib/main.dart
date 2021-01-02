@@ -1,6 +1,9 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+// ignore_for_file: public_member_api_docs
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -18,15 +21,17 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final LocalAuthentication auth = LocalAuthentication();
-  bool _canCheckBiometrics;
-  List<BiometricType> _availableBiometrics;
+  late bool _canCheckBiometrics;
+  late List<BiometricType> _availableBiometrics;
   String _authorized = 'Not Authorized';
+  bool _isAuthenticating = false;
 
   Future<void> _checkBiometrics() async {
-    bool canCheckBiometrics;
+    late bool canCheckBiometrics;
     try {
       canCheckBiometrics = await auth.canCheckBiometrics;
     } on PlatformException catch (e) {
+      canCheckBiometrics = false;
       print(e);
     }
     if (!mounted) return;
@@ -37,10 +42,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _getAvailableBiometrics() async {
-    List<BiometricType> availableBiometrics;
+    late List<BiometricType> availableBiometrics;
     try {
       availableBiometrics = await auth.getAvailableBiometrics();
     } on PlatformException catch (e) {
+      availableBiometrics = <BiometricType>[];
       print(e);
     }
     if (!mounted) return;
@@ -53,18 +59,31 @@ class _MyAppState extends State<MyApp> {
   Future<void> _authenticate() async {
     bool authenticated = false;
     try {
+      setState(() {
+        _isAuthenticating = true;
+        _authorized = 'Authenticating';
+      });
       authenticated = await auth.authenticateWithBiometrics(
           localizedReason: 'Scan your fingerprint to authenticate',
           useErrorDialogs: true,
           stickyAuth: true);
+      setState(() {
+        _isAuthenticating = false;
+        _authorized = 'Authenticating';
+      });
     } on PlatformException catch (e) {
       print(e);
     }
     if (!mounted) return;
 
+    final String message = authenticated ? 'Authorized' : 'Not Authorized';
     setState(() {
-      _authorized = authenticated ? 'Authorized' : 'Not Authorized';
+      _authorized = message;
     });
+  }
+
+  void _cancelAuthentication() {
+    auth.stopAuthentication();
   }
 
   @override
@@ -91,8 +110,9 @@ class _MyAppState extends State<MyApp> {
                 ),
                 Text('Current State: $_authorized\n'),
                 RaisedButton(
-                  child: const Text('Authenticate'),
-                  onPressed: _authenticate,
+                  child: Text(_isAuthenticating ? 'Cancel' : 'Authenticate'),
+                  onPressed:
+                      _isAuthenticating ? _cancelAuthentication : _authenticate,
                 )
               ])),
     ));
