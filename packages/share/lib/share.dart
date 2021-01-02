@@ -8,6 +8,7 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
+import 'package:mime/mime.dart' show lookupMimeType;
 
 /// Plugin for summoning a platform share sheet.
 class Share {
@@ -33,8 +34,8 @@ class Share {
   /// from [MethodChannel].
   static Future<void> share(
     String text, {
-    String subject,
-    Rect sharePositionOrigin,
+    String? subject,
+    Rect? sharePositionOrigin,
   }) {
     assert(text != null);
     assert(text.isNotEmpty);
@@ -53,10 +54,10 @@ class Share {
     return channel.invokeMethod<void>('share', params);
   }
 
-  /// Summons the platform's share sheet to share a file.
+  /// Summons the platform's share sheet to share multiple files.
   ///
   /// Wraps the platform's native share dialog. Can share a file.
-  /// It uses the ACTION_SEND Intent on Android and UIActivityViewController
+  /// It uses the `ACTION_SEND` Intent on Android and `UIActivityViewController`
   /// on iOS.
   ///
   /// The optional `sharePositionOrigin` parameter can be used to specify a global
@@ -65,16 +66,20 @@ class Share {
   ///
   /// May throw [PlatformException] or [FormatException]
   /// from [MethodChannel].
-  static Future<void> shareFile(File file,
-      {String mimeType,
-      String subject,
-      String text,
-      Rect sharePositionOrigin}) {
-    assert(file != null);
-    assert(file.existsSync());
+  static Future<void> shareFiles(
+    List<String> paths, {
+    List<String>? mimeTypes,
+    String? subject,
+    String? text,
+    Rect? sharePositionOrigin,
+  }) {
+    assert(paths != null);
+    assert(paths.isNotEmpty);
+    assert(paths.every((element) => element != null && element.isNotEmpty));
     final Map<String, dynamic> params = <String, dynamic>{
-      'path': file.path,
-      'mimeType': mimeType ?? _mimeTypeForFile(file),
+      'paths': paths,
+      'mimeTypes': mimeTypes ??
+          paths.map((String path) => _mimeTypeForPath(path)).toList(),
     };
 
     if (subject != null) params['subject'] = subject;
@@ -87,58 +92,11 @@ class Share {
       params['originHeight'] = sharePositionOrigin.height;
     }
 
-    return channel.invokeMethod('shareFile', params);
+    return channel.invokeMethod('shareFiles', params);
   }
 
-  static String _mimeTypeForFile(File file) {
-    assert(file != null);
-    final String path = file.path;
-
-    final int extensionIndex = path.lastIndexOf("\.");
-    if (extensionIndex == -1 || extensionIndex == 0) {
-      return null;
-    }
-
-    final String extension = path.substring(extensionIndex + 1);
-    switch (extension) {
-      // image
-      case 'jpeg':
-      case 'jpg':
-        return 'image/jpeg';
-      case 'gif':
-        return 'image/gif';
-      case 'png':
-        return 'image/png';
-      case 'svg':
-        return 'image/svg+xml';
-      case 'tif':
-      case 'tiff':
-        return 'image/tiff';
-      // audio
-      case 'aac':
-        return 'audio/aac';
-      case 'oga':
-        return 'audio/ogg';
-      // video
-      case 'avi':
-        return 'video/x-msvideo';
-      case 'mpeg':
-        return 'video/mpeg';
-      case 'ogv':
-        return 'video/ogg';
-      // other
-      case 'csv':
-        return 'text/csv';
-      case 'htm':
-      case 'html':
-        return 'text/html';
-      case 'json':
-        return 'application/json';
-      case 'pdf':
-        return 'application/pdf';
-      case 'txt':
-        return 'text/plain';
-    }
-    return null;
+  static String _mimeTypeForPath(String path) {
+    assert(path != null);
+    return lookupMimeType(path) ?? 'application/octet-stream';
   }
 }

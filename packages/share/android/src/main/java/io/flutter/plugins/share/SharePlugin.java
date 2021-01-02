@@ -4,86 +4,70 @@
 
 package io.flutter.plugins.share;
 
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Environment;
-import androidx.annotation.NonNull;
-import androidx.core.content.FileProvider;
-import io.flutter.plugin.common.MethodCall;
+import android.app.Activity;
+import android.content.Context;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
-import java.io.*;
-import java.util.Map;
 
 /** Plugin method host for presenting a share sheet via Intent */
-public class SharePlugin implements MethodChannel.MethodCallHandler {
+public class SharePlugin implements FlutterPlugin, ActivityAware {
 
   private static final String CHANNEL = "plugins.flutter.io/share";
+  private MethodCallHandler handler;
+  private Share share;
+  private MethodChannel methodChannel;
 
-  public static void registerWith(Registrar registrar) {
-    MethodChannel channel = new MethodChannel(registrar.messenger(), CHANNEL);
-    SharePlugin instance = new SharePlugin(registrar);
-    channel.setMethodCallHandler(instance);
-  }
-
-  private final Registrar mRegistrar;
-
-  private SharePlugin(Registrar registrar) {
-    this.mRegistrar = registrar;
+  @SuppressWarnings("deprecation")
+  public static void registerWith(io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
+    SharePlugin plugin = new SharePlugin();
+    plugin.setUpChannel(registrar.context(), registrar.activity(), registrar.messenger());
   }
 
   @Override
-  public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-    switch (call.method) {
-      case "share":
-        expectMapArguments(call);
-        // Android does not support showing the share sheet at a particular point on screen.
-        share((String) call.argument("text"), (String) call.argument("subject"));
-        result.success(null);
-        break;
-      case "shareFile":
-        expectMapArguments(call);
-        // Android does not support showing the share sheet at a particular point on screen.
-        try {
-          shareFile(
-              (String) call.argument("path"),
-              (String) call.argument("mimeType"),
-              (String) call.argument("subject"),
-              (String) call.argument("text"));
-          result.success(null);
-        } catch (IOException e) {
-          result.error(e.getMessage(), null, null);
-        }
-        break;
-      default:
-        result.notImplemented();
-        break;
-    }
+  public void onAttachedToEngine(FlutterPluginBinding binding) {
+    setUpChannel(binding.getApplicationContext(), null, binding.getBinaryMessenger());
   }
 
-  private void expectMapArguments(MethodCall call) throws IllegalArgumentException {
-    if (!(call.arguments instanceof Map)) {
-      throw new IllegalArgumentException("Map argument expected");
-    }
+  @Override
+  public void onDetachedFromEngine(FlutterPluginBinding binding) {
+    methodChannel.setMethodCallHandler(null);
+    methodChannel = null;
+    share = null;
   }
 
-  private void share(String text, String subject) {
-    if (text == null || text.isEmpty()) {
-      throw new IllegalArgumentException("Non-empty text expected");
-    }
+  @Override
+  public void onAttachedToActivity(ActivityPluginBinding binding) {
+    share.setActivity(binding.getActivity());
+  }
 
-    Intent shareIntent = new Intent();
-    shareIntent.setAction(Intent.ACTION_SEND);
-    shareIntent.putExtra(Intent.EXTRA_TEXT, text);
-    shareIntent.putExtra(Intent.EXTRA_SUBJECT, subject);
-    shareIntent.setType("text/plain");
-    Intent chooserIntent = Intent.createChooser(shareIntent, null /* dialog title optional */);
-    if (mRegistrar.activity() != null) {
-      mRegistrar.activity().startActivity(chooserIntent);
-    } else {
-      chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-      mRegistrar.context().startActivity(chooserIntent);
-    }
+  @Override
+  public void onDetachedFromActivity() {
+    tearDownChannel();
+  }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
+    onAttachedToActivity(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivityForConfigChanges() {
+    onDetachedFromActivity();
+  }
+
+  private void setUpChannel(Context context, Activity activity, BinaryMessenger messenger) {
+    methodChannel = new MethodChannel(messenger, CHANNEL);
+    share = new Share(context, activity);
+    handler = new MethodCallHandler(share);
+    methodChannel.setMethodCallHandler(handler);
+  }
+
+  private void tearDownChannel() {
+    share.setActivity(null);
+    methodChannel.setMethodCallHandler(null);
   }
 
   private void shareFile(String path, String mimeType, String subject, String text)

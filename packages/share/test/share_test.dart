@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.9
+
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart' show TestWidgetsFlutterBinding;
@@ -21,16 +23,8 @@ void main() {
     // Re-pipe to mockito for easier verifies.
     Share.channel.setMockMethodCallHandler((MethodCall call) async {
       // The explicit type can be void as the only method call has a return type of void.
-      mockChannel.invokeMethod<void>(call.method, call.arguments);
+      await mockChannel.invokeMethod<void>(call.method, call.arguments);
     });
-  });
-
-  test('sharing null fails', () {
-    expect(
-      () => Share.share(null),
-      throwsA(const TypeMatcher<AssertionError>()),
-    );
-    verifyZeroInteractions(mockChannel);
   });
 
   test('sharing empty fails', () {
@@ -57,38 +51,23 @@ void main() {
     }));
   });
 
-  test('sharing null file fails', () {
-    expect(
-      () => Share.shareFile(null),
-      throwsA(const TypeMatcher<AssertionError>()),
-    );
-    verifyZeroInteractions(mockChannel);
-  });
-
   test('sharing empty file fails', () {
     expect(
-      () => Share.shareFile(null),
-      throwsA(const TypeMatcher<AssertionError>()),
-    );
-    verifyZeroInteractions(mockChannel);
-  });
-
-  test('sharing non existing file fails', () {
-    expect(
-      () => Share.shareFile(File('/sdcard/nofile.txt')),
+      () => Share.shareFiles(['']),
       throwsA(const TypeMatcher<AssertionError>()),
     );
     verifyZeroInteractions(mockChannel);
   });
 
   test('sharing file sets correct mimeType', () async {
-    final File file = File('tempfile-83649a.png');
+    final String path = 'tempfile-83649a.png';
+    final File file = File(path);
     try {
       file.createSync();
-      await Share.shareFile(file);
-      verify(mockChannel.invokeMethod<void>('shareFile', <String, dynamic>{
-        'path': file.path,
-        'mimeType': 'image/png',
+      await Share.shareFiles([path]);
+      verify(mockChannel.invokeMethod('shareFiles', <String, dynamic>{
+        'paths': [path],
+        'mimeTypes': ['image/png'],
       }));
     } finally {
       file.deleteSync();
@@ -96,13 +75,14 @@ void main() {
   });
 
   test('sharing file sets passed mimeType', () async {
-    final File file = File('tempfile-83649a.png');
+    final String path = 'tempfile-83649a.png';
+    final File file = File(path);
     try {
       file.createSync();
-      await Share.shareFile(file, mimeType: '*/*');
-      verify(mockChannel.invokeMethod<void>('shareFile', <String, dynamic>{
-        'path': file.path,
-        'mimeType': '*/*',
+      await Share.shareFiles([path], mimeTypes: ['*/*']);
+      verify(mockChannel.invokeMethod('shareFiles', <String, dynamic>{
+        'paths': [file.path],
+        'mimeTypes': ['*/*'],
       }));
     } finally {
       file.deleteSync();
