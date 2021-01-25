@@ -37,7 +37,3 @@ android {
         implementation 'androidx.annotation:annotation:1.1.0'
     }
 }
-
-dependencies {
-    implementation 'androidx.core:core:1.0.0'
-}
